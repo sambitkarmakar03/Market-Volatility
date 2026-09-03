@@ -1154,3 +1154,245 @@ Repeat through time
 ```
 
 That is what the entire GARCH implementation is trying to accomplish.
+
+---
+
+# 31. GARCH Formula Summary
+
+The complete mathematical flow of the implementation can be summarized as follows.
+
+## 1. Calculate Returns
+
+First, convert stock prices into returns:
+
+$$
+r_t = \frac{P_t-P_{t-1}}{P_{t-1}}
+$$
+
+Where:
+
+* $P_t$ = current price
+* $P_{t-1}$ = previous price
+* $r_t$ = return
+
+---
+
+## 2. Convert Returns to Percentage
+
+The returns are multiplied by 100:
+
+$$
+R_t = r_t \times 100
+$$
+
+For example:
+
+$$
+0.05 \rightarrow 5\%
+$$
+
+---
+
+## 3. Calculate the Shock
+
+The shock represents the unexpected part of the return:
+
+$$
+\epsilon_t = R_t-\mu_t
+$$
+
+Where:
+
+* $R_t$ = actual return
+* $\mu_t$ = expected/mean return
+* $\epsilon_t$ = unexpected return or shock
+
+The `arch` library estimates these shocks internally.
+
+---
+
+## 4. Square the Shock
+
+GARCH uses the squared shock:
+
+$$
+\epsilon_t^2
+$$
+
+This measures the **size of the shock** without caring whether the movement was positive or negative.
+
+For example:
+
+$$
+(+5)^2 = 25
+$$
+
+$$
+(-5)^2 = 25
+$$
+
+---
+
+## 5. GARCH(1,1) Variance Equation
+
+The main GARCH equation is:
+
+$$
+\boxed{
+\sigma_t^2 =
+\omega+
+\alpha\epsilon_{t-1}^2+
+\beta\sigma_{t-1}^2
+}
+$$
+
+In simple terms:
+
+$$
+\boxed{
+\text{Current Variance}
+=
+\text{Baseline}
++
+\text{Recent Shock}^2
++
+\text{Previous Variance}
+}
+$$
+
+Where:
+
+* $\sigma_t^2$ = current conditional variance
+* $\omega$ = baseline variance
+* $\alpha$ = effect of recent shocks
+* $\epsilon_{t-1}^2$ = previous squared shock
+* $\beta$ = volatility persistence
+* $\sigma_{t-1}^2$ = previous conditional variance
+
+---
+
+## 6. Convert Variance to Volatility
+
+GARCH produces a variance forecast first.
+
+We convert it to volatility by taking the square root:
+
+$$
+\boxed{
+\sigma_t=\sqrt{\sigma_t^2}
+}
+$$
+
+This is the value stored as:
+
+```python
+garch_vol
+```
+
+---
+
+## 7. Rolling Standard Deviation Fallback
+
+If GARCH fails, the implementation uses the 30-day rolling standard deviation:
+
+$$
+\boxed{
+s_t =
+\sqrt{
+\frac{1}{n-1}
+\sum_{i=1}^{n}
+(R_i-\bar R)^2
+}
+}
+$$
+
+where:
+
+$$
+n=30
+$$
+
+This provides a simpler volatility estimate.
+
+---
+
+# Complete Formula Flow
+
+The entire GARCH implementation can therefore be represented as:
+
+$$
+\boxed{
+P_t
+\rightarrow
+r_t
+\rightarrow
+R_t
+\rightarrow
+\epsilon_t
+\rightarrow
+\epsilon_t^2
+\rightarrow
+\sigma_t^2
+\rightarrow
+\sigma_t
+\rightarrow
+garch\_vol
+}
+$$
+
+Or in plain English:
+
+```text
+Stock Price
+     ↓
+Calculate Return
+     ↓
+Convert to Percentage Return
+     ↓
+Find Unexpected Return (Shock)
+     ↓
+Square the Shock
+     ↓
+GARCH combines:
+    • Baseline variance
+    • Recent squared shock
+    • Previous variance
+     ↓
+Forecast Variance
+     ↓
+Take √(Variance)
+     ↓
+GARCH Volatility
+     ↓
+Store as garch_vol
+```
+
+### The Core GARCH Formula
+
+If there is only **one formula** to remember, remember this:
+
+$$
+\boxed{
+\sigma_t^2 =
+\omega+
+\alpha\epsilon_{t-1}^2+
+\beta\sigma_{t-1}^2
+}
+$$
+
+It means:
+
+> **Today's expected variance depends on a baseline level, yesterday's shock, and yesterday's variance.**
+
+Then:
+
+$$
+\boxed{
+\text{Volatility}=\sqrt{\text{Variance}}
+}
+$$
+
+So the fundamental idea behind the entire implementation is:
+
+> **Recent large shocks increase volatility, and high volatility tends to persist.**
+
